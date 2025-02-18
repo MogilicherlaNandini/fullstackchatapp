@@ -92,7 +92,7 @@ const MessageInput = () => {
                      ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
             onClick={() => fileInputRef.current?.click()}
           >
-            <Image size={20} />
+            <Image size={30} />
           </button>
         </div>
         <button
@@ -107,3 +107,4 @@ const MessageInput = () => {
   );
 };
 export default MessageInput;
+
