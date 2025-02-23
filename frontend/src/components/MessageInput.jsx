@@ -229,14 +229,6 @@ import { useRef, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { Paperclip, Send, X } from "lucide-react";
 import toast from "react-hot-toast";
-import CryptoJS from "crypto-js";
-
-const SECRET_KEY = "my_secret_key_123"; // Should be stored securely
-
-// Encrypt function
-const encryptData = (text) => {
-  return CryptoJS.AES.encrypt(text, SECRET_KEY).toString();
-};
 
 const MessageInput = () => {
   const [text, setText] = useState("");
@@ -266,56 +258,26 @@ const MessageInput = () => {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!text.trim() && !filePreview) return;
-  
-    // Encrypt message if text is present
-    const encryptedText = text.trim() ? encryptData(text.trim()) : "";
-  
-    // Show full encrypted message in toast (for text & files)
-    const toastId = toast.custom((t) => (
-      <div className={`bg-gray-900 text-white p-4 rounded-lg shadow-lg w-96 ${t.visible ? "animate-fade-in" : "animate-fade-out"}`}>
-        <h3 className="text-lg font-semibold mb-2">🔒 Encrypting Message...</h3>
-        {text && (
-          <>
-            <p><strong>Original:</strong> {text}</p>
-            <p className="break-all"><strong>Encrypted:</strong> {encryptedText}</p>
-          </>
-        )}
-        {filePreview && (
-          <>
-            <p className="mt-2"><strong>File:</strong> {fileName}</p>
-            <p className="break-all"><strong>File Preview:</strong> <img src={filePreview} alt="Preview" className="w-20 h-20 rounded-lg border" /></p>
-          </>
-        )}
-      </div>
-    ), {
-      position: "top-center",
-      duration: 3000,
-    });
-  
-    setTimeout(async () => {
-      toast.dismiss(toastId);
-  
-      try {
-        await sendMessage({
-          text: encryptedText, // Encrypt text but NOT files
-          file: filePreview,   // Don't encrypt, just send URL
-          fileName: fileName,  // Don't encrypt filename
-        });
-  
-        toast.success("✅ Message sent!", { position: "top-center" });
-  
-        // Clear form
-        setText("");
-        setFilePreview(null);
-        setFileName("");
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      } catch (error) {
-        console.error("Failed to send message:", error);
-        toast.error("❌ Failed to send message.", { position: "top-center" });
-      }
-    }, 3000);
+
+    try {
+      await sendMessage({
+        text: text.trim(),
+        file: filePreview ? filePreview.split(',')[1] : null, // Send base64 content
+        fileName: fileName,
+      });
+
+      toast.success("Message sent!");
+
+      // Clear form
+      setText("");
+      setFilePreview(null);
+      setFileName("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      toast.error("Failed to send message.");
+    }
   };
-  
 
   return (
     <div className="p-4 w-full relative">

@@ -71,9 +71,10 @@
 
 import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
-import cloudinary from "../lib/cloudinary.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
+import { to_Encrypt, to_Decrypt, encryptFile, decryptFile } from "../lib/aes.js";
 
+// ✅ Get all users for the sidebar
 export const getUsersForSidebar = async (req, res) => {
   try {
     const loggedInUserId = req.user._id;
@@ -81,11 +82,12 @@ export const getUsersForSidebar = async (req, res) => {
 
     res.status(200).json(filteredUsers);
   } catch (error) {
-    console.error("Error in getUsersForSidebar: ", error.message);
+    console.error("❌ Error in getUsersForSidebar:", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
+// ✅ Get messages (decrypting text & files before sending)
 export const getMessages = async (req, res) => {
   try {
     const { id: userToChatId } = req.params;
@@ -98,50 +100,74 @@ export const getMessages = async (req, res) => {
       ],
     });
 
-    res.status(200).json(messages);
+    // 🔓 Decrypt messages before sending
+    const decryptedMessages = messages.map((message) => {
+      const decryptedText = message.text ? to_Decrypt(message.text) : null;
+      const decryptedFile = message.file ? decryptFile(message.file) : null;
+
+       // Debugging log
+
+      return {
+        ...message.toObject(),
+        text: decryptedText, // Ensure decrypted text is sent
+        file: decryptedFile ? decryptedFile.toString("base64") : null,
+      };
+    });
+
+    res.status(200).json(decryptedMessages);
   } catch (error) {
-    console.log("Error in getMessages controller: ", error.message);
+    console.error("❌ Error in getMessages:", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
+// ✅ Send a new message (encrypting text & files before saving)
 export const sendMessage = async (req, res) => {
   try {
     const { text, file, fileName } = req.body;
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
-    let fileUrl;
+    let encryptedFile = null;
     if (file) {
-      // Determine resource type (fix for PDFs)
-      const resourceType = file.startsWith("data:application/pdf") ? "raw" : "auto";
-
-      // Upload file to Cloudinary
-      const uploadResponse = await cloudinary.uploader.upload(file, {
-        resource_type: resourceType,
-      });
-
-      fileUrl = uploadResponse.secure_url;
+      const fileBuffer = Buffer.from(file, "base64");
+      encryptedFile = encryptFile(fileBuffer);
     }
+
+    // 🔒 Encrypt the text message before storing
+    const encryptedText = text ? to_Encrypt(text) : null;
+    console.log("🔒 Encrypted Text Before Saving:", encryptedText); // Debugging
 
     const newMessage = new Message({
       senderId,
       receiverId,
-      text,
-      file: fileUrl,
+      text: encryptedText , // Store encrypted text
+      file: encryptedFile, // Store encrypted file
       fileName,
     });
 
     await newMessage.save();
+    console.log("new message",newMessage);
 
+    // 🔄 Emit real-time message event
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
-      io.to(receiverSocketId).emit("newMessage", newMessage);
+      io.to(receiverSocketId).emit("newMessage", {
+        senderId,
+        receiverId,
+        text, // Send decrypted text to frontend
+        file,
+        fileName,
+      });
     }
 
-    res.status(201).json(newMessage);
+    res.status(201).json({
+      ...newMessage.toObject(),
+      text, // Send decrypted text to frontend
+      file,
+    });
   } catch (error) {
-    console.log("Error in sendMessage controller: ", error.message);
+    console.error("❌ Error in sendMessage:", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
