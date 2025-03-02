@@ -161,4 +161,4 @@ export const deleteGroupChatForUser = async (req, res) => {
     console.error("Error in deleteGroupChatForUser controller:", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
-};  
+};

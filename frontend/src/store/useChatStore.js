@@ -80,6 +80,15 @@ export const useChatStore = create((set, get) => ({
   selectedGroup: null,
   isUsersLoading: false,
   isMessagesLoading: false,
+  deleteGroupChatForUser: async (groupId, userId) => {
+    try {
+      await axiosInstance.delete(`/groups/${groupId}/messages/${userId}`);
+    } catch (error) {
+      console.error("Error deleting group chat for user:", error);
+      throw error;
+    }
+  },
+
   updateGroupMembers: async (groupId, members) => {
     try {
       const res = await axiosInstance.put(`/groups/${groupId}/members`, { members });

@@ -21,6 +21,10 @@ const groupMessageSchema = new mongoose.Schema(
     fileName: {
       type: String,
     },
+    deletedFor: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    }],
   },
   { timestamps: true }
 );
