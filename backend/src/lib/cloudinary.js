@@ -13,9 +13,11 @@
 // export default cloudinary;
 
 import { v2 as cloudinary } from "cloudinary";
-import { config } from "dotenv";
+//import { config } from "dotenv";
+import dotenv from "dotenv";
+dotenv.config({ path: "./src/.env" });
 
-config({path:"./src/.env"});
+//config({path:"./src/.env"});
 
 console.log('Cloudinary Configuration:');
 console.log('CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME);

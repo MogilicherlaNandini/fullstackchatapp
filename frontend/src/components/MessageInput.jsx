@@ -230,12 +230,12 @@ import { useChatStore } from "../store/useChatStore";
 import { Paperclip, Send, X } from "lucide-react";
 import toast from "react-hot-toast";
 
-const MessageInput = () => {
+const MessageInput = ({ isGroupChat, groupId }) => {
   const [text, setText] = useState("");
   const [filePreview, setFilePreview] = useState(null);
   const [fileName, setFileName] = useState("");
   const fileInputRef = useRef(null);
-  const { sendMessage } = useChatStore();
+  const { sendMessage, sendGroupMessage } = useChatStore();
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -260,11 +260,17 @@ const MessageInput = () => {
     if (!text.trim() && !filePreview) return;
 
     try {
-      await sendMessage({
+      const messageData = {
         text: text.trim(),
         file: filePreview ? filePreview.split(',')[1] : null, // Send base64 content
         fileName: fileName,
-      });
+      };
+
+      if (isGroupChat) {
+        await sendGroupMessage(groupId, messageData);
+      } else {
+        await sendMessage(messageData);
+      }
 
       toast.success("Message sent!");
 
