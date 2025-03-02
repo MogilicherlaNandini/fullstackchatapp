@@ -20,6 +20,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    notificationCounts: {
+      type: Map,
+      of: Number,
+      default: {},
+    },
   },
   { timestamps: true }
 );
