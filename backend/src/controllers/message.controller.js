@@ -112,6 +112,11 @@ export const getMessages = async (req, res) => {
       };
     });
 
+    // Reset unread count for the selected user or group
+    await User.findByIdAndUpdate(myId, {
+      $set: { [`notificationCounts.${userToChatId}`]: 0 },
+    });
+
     res.status(200).json(decryptedMessages);
   } catch (error) {
     console.error("❌ Error in getMessages:", error.message);
@@ -174,7 +179,6 @@ export const sendMessage = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-
 // ✅ Get notification counts
 export const getNotificationCounts = async (req, res) => {
   try {

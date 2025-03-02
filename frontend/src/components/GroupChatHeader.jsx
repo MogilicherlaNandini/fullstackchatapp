@@ -57,12 +57,8 @@ const GroupChatHeader = () => {
 
   const handleExitGroup = async () => {
     try {
-      // Remove the user from the group members
-      const updatedMembers = selectedGroup.members.filter(member => member._id !== authUser._id);
-      await axiosInstance.put(`/groups/${selectedGroup._id}/members`, { members: updatedMembers });
-
-      // Send a message indicating that the user has left the group
-      await sendGroupMessage(selectedGroup._id, { text: `${authUser.fullName} has left the group.` });
+      // Call the backend to exit the group
+      await axiosInstance.post(`/groups/${selectedGroup._id}/exit`);
 
       toast.success("You have exited the group.");
       setSelectedGroup(null);
@@ -76,7 +72,7 @@ const GroupChatHeader = () => {
   const handleDeleteChat = async () => {
     try {
       // Delete the chat for the particular user
-      await deleteGroupChatForUser(selectedGroup._id, authUser._id);
+      await deleteGroupChatForUser(selectedGroup._id);
       toast.success("Chat deleted.");
       setSelectedGroup(null);
       getGroupMessages(selectedGroup._id);

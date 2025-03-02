@@ -94,7 +94,18 @@ export const useChatStore = create((set, get) => ({
       toast.error("Failed to delete messages");
     }
   },
-
+  deleteGroupChatForUser: async (groupId) => {
+    try {
+      await axiosInstance.post(`/groups/${groupId}/delete`);
+      set((state) => ({
+        groups: state.groups.filter((group) => group._id !== groupId),
+        selectedGroup: state.selectedGroup?._id === groupId ? null : state.selectedGroup,
+      }));
+      toast.success("Group chat deleted successfully");
+    } catch (error) {
+      toast.error("Failed to delete group chat");
+    }
+  },
   clearChat: async (userId) => {
     try {
       await axiosInstance.post(`/messages/clear/${userId}`);
@@ -240,46 +251,44 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  subscribeToMessages: (isGroup = false) => {
-    const { selectedUser, selectedGroup } = get();
+  subscribeToMessages: () => {
     const socket = useAuthStore.getState().socket;
 
-    if (selectedUser && !isGroup) {
-      socket.on("newMessage", (newMessage) => {
-        if (newMessage.senderId === selectedUser._id) {
-          set({ messages: [...get().messages, newMessage] });
-        } else {
-          // Increment unread count for the sender
-          set((state) => {
-            const unreadCounts = { ...state.unreadCounts };
-            unreadCounts[newMessage.senderId] = (unreadCounts[newMessage.senderId] || 0) + 1;
-            return {
-              unreadCounts,
-              totalUnreadCount: Object.values(unreadCounts).reduce((a, b) => a + b, 0),
-            };
-          });
-        }
-      });
-    }
+    socket.on("newMessage", (newMessage) => {
+      const { selectedUser } = get();
+      if (selectedUser && newMessage.senderId === selectedUser._id) {
+        set({ messages: [...get().messages, newMessage] });
+      } else {
+        // Increment unread count for the sender
+        set((state) => {
+          const unreadCounts = { ...state.unreadCounts };
+          unreadCounts[newMessage.senderId] = (unreadCounts[newMessage.senderId] || 0) + 1;
+          return {
+            unreadCounts,
+            totalUnreadCount: Object.values(unreadCounts).reduce((a, b) => a + b, 0),
+          };
+        });
+      }
+    });
 
-    if (selectedGroup && isGroup) {
-      socket.on("newGroupMessage", (newMessage) => {
-        if (newMessage.groupId === selectedGroup._id) {
-          set({ messages: [...get().messages, newMessage] });
-        } else {
-          // Increment unread count for the group
-          set((state) => {
-            const unreadCounts = { ...state.unreadCounts };
-            unreadCounts[newMessage.groupId] = (unreadCounts[newMessage.groupId] || 0) + 1;
-            return {
-              unreadCounts,
-              totalUnreadCount: Object.values(unreadCounts).reduce((a, b) => a + b, 0),
-            };
-          });
-        }
-      });
-    }
+    socket.on("newGroupMessage", (newMessage) => {
+      const { selectedGroup } = get();
+      if (selectedGroup && newMessage.groupId === selectedGroup._id) {
+        set({ messages: [...get().messages, newMessage] });
+      } else {
+        // Increment unread count for the group
+        set((state) => {
+          const unreadCounts = { ...state.unreadCounts };
+          unreadCounts[newMessage.groupId] = (unreadCounts[newMessage.groupId] || 0) + 1;
+          return {
+            unreadCounts,
+            totalUnreadCount: Object.values(unreadCounts).reduce((a, b) => a + b, 0),
+          };
+        });
+      }
+    });
   },
+
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
