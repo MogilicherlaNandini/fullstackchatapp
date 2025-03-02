@@ -119,7 +119,6 @@ export const getMessages = async (req, res) => {
   }
 };
 
- 
 // ✅ Send a new message (encrypting text & files before saving)
 export const sendMessage = async (req, res) => {
   try {
@@ -140,13 +139,18 @@ export const sendMessage = async (req, res) => {
     const newMessage = new Message({
       senderId,
       receiverId,
-      text: encryptedText , // Store encrypted text
+      text: encryptedText, // Store encrypted text
       file: encryptedFile, // Store encrypted file
       fileName,
     });
 
     await newMessage.save();
-    console.log("new message",newMessage);
+    console.log("new message", newMessage);
+
+    // Increment notification count for the receiver
+    await User.findByIdAndUpdate(receiverId, {
+      $inc: { [`notificationCounts.${senderId}`]: 1 },
+    });
 
     // 🔄 Emit real-time message event
     const receiverSocketId = getReceiverSocketId(receiverId);
@@ -170,6 +174,19 @@ export const sendMessage = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+// ✅ Get notification counts
+export const getNotificationCounts = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const user = await User.findById(userId).select("notificationCounts");
+    res.status(200).json(user.notificationCounts);
+  } catch (error) {
+    console.error("❌ Error in getNotificationCounts:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 export const deleteMessages = async (req, res) => {
   try {
     const { messageIds } = req.body;

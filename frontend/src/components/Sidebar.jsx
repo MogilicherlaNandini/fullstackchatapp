@@ -6,7 +6,20 @@ import { Users, PlusCircle } from "lucide-react";
 import AddGroupModal from "./AddGroupModal";
 
 const Sidebar = () => {
-  const { getUsers, getGroups, users, groups, selectedUser, selectedGroup, setSelectedUser, setSelectedGroup, getMessages, isUsersLoading } = useChatStore();
+  const {
+    getUsers,
+    getGroups,
+    users,
+    groups,
+    selectedUser,
+    selectedGroup,
+    setSelectedUser,
+    setSelectedGroup,
+    getMessages,
+    isUsersLoading,
+    unreadCounts,
+    getNotificationCounts,
+  } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [showAddGroupModal, setShowAddGroupModal] = useState(false);
@@ -14,7 +27,8 @@ const Sidebar = () => {
   useEffect(() => {
     getUsers();
     getGroups(); // Fetch groups
-  }, [getUsers, getGroups]);
+    getNotificationCounts(); // Fetch notification counts
+  }, [getUsers, getGroups, getNotificationCounts]);
 
   const handleUserClick = (user) => {
     setSelectedUser(user);
@@ -82,6 +96,11 @@ const Sidebar = () => {
                   rounded-full ring-2 ring-zinc-900"
                 />
               )}
+              {unreadCounts[user._id] > 0 && (
+                <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full">
+                  {unreadCounts[user._id]}
+                </span>
+              )}
             </div>
 
             {/* User info - only visible on larger screens */}
@@ -110,6 +129,11 @@ const Sidebar = () => {
                 alt={group.name}
                 className="size-12 object-cover rounded-full"
               />
+              {unreadCounts[group._id] > 0 && (
+                <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full">
+                  {unreadCounts[group._id]}
+                </span>
+              )}
             </div>
 
             {/* Group info - only visible on larger screens */}

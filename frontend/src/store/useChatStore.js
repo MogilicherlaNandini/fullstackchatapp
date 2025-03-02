@@ -80,18 +80,8 @@ export const useChatStore = create((set, get) => ({
   selectedGroup: null,
   isUsersLoading: false,
   isMessagesLoading: false,
-   
-  deleteMessages: async (messageIds) => {
-    try {
-      await axiosInstance.post("/messages/delete", { messageIds });
-      set((state) => ({
-        messages: state.messages.filter((message) => !messageIds.includes(message._id)),
-      }));
-      toast.success("Messages deleted successfully");
-    } catch (error) {
-      toast.error("Failed to delete messages");
-    }
-  },
+  unreadCounts: {}, // Track unread messages for each contact or group
+  totalUnreadCount: 0, // Total unread messages count
 
   deleteMessages: async (messageIds) => {
     try {
@@ -130,6 +120,7 @@ export const useChatStore = create((set, get) => ({
       toast.error(error.response?.data?.message || "Error updating group members");
     }
   },
+
   updateGroupProfile: async (groupId, groupData) => {
     try {
       const res = await axiosInstance.put(`/groups/${groupId}`, groupData);
@@ -145,7 +136,6 @@ export const useChatStore = create((set, get) => ({
       toast.error(error.response?.data?.message || "Error updating group profile");
     }
   },
-
 
   getUsers: async () => {
     set({ isUsersLoading: true });
@@ -173,6 +163,15 @@ export const useChatStore = create((set, get) => ({
     try {
       const res = await axiosInstance.get(`/${isGroup ? 'groups' : 'messages'}/${userId}/messages`);
       set({ messages: res.data });
+      // Reset unread count for the selected user or group
+      set((state) => {
+        const unreadCounts = { ...state.unreadCounts };
+        delete unreadCounts[userId];
+        return {
+          unreadCounts,
+          totalUnreadCount: Object.values(unreadCounts).reduce((a, b) => a + b, 0),
+        };
+      });
     } catch (error) {
       toast.error(error.response.data.message);
     } finally {
@@ -206,6 +205,15 @@ export const useChatStore = create((set, get) => ({
     try {
       const res = await axiosInstance.get(`/groups/${groupId}/messages`);
       set({ messages: res.data });
+      // Reset unread count for the selected group
+      set((state) => {
+        const unreadCounts = { ...state.unreadCounts };
+        delete unreadCounts[groupId];
+        return {
+          unreadCounts,
+          totalUnreadCount: Object.values(unreadCounts).reduce((a, b) => a + b, 0),
+        };
+      });
     } catch (error) {
       toast.error(error.response.data.message);
     } finally {
@@ -222,7 +230,15 @@ export const useChatStore = create((set, get) => ({
       toast.error(error.response.data.message);
     }
   },
-  
+
+  getNotificationCounts: async () => {
+    try {
+      const res = await axiosInstance.get("/messages/notifications/counts");
+      set({ unreadCounts: res.data, totalUnreadCount: Object.values(res.data).reduce((a, b) => a + b, 0) });
+    } catch (error) {
+      toast.error("Failed to fetch notification counts");
+    }
+  },
 
   subscribeToMessages: (isGroup = false) => {
     const { selectedUser, selectedGroup } = get();
@@ -232,6 +248,16 @@ export const useChatStore = create((set, get) => ({
       socket.on("newMessage", (newMessage) => {
         if (newMessage.senderId === selectedUser._id) {
           set({ messages: [...get().messages, newMessage] });
+        } else {
+          // Increment unread count for the sender
+          set((state) => {
+            const unreadCounts = { ...state.unreadCounts };
+            unreadCounts[newMessage.senderId] = (unreadCounts[newMessage.senderId] || 0) + 1;
+            return {
+              unreadCounts,
+              totalUnreadCount: Object.values(unreadCounts).reduce((a, b) => a + b, 0),
+            };
+          });
         }
       });
     }
@@ -240,6 +266,16 @@ export const useChatStore = create((set, get) => ({
       socket.on("newGroupMessage", (newMessage) => {
         if (newMessage.groupId === selectedGroup._id) {
           set({ messages: [...get().messages, newMessage] });
+        } else {
+          // Increment unread count for the group
+          set((state) => {
+            const unreadCounts = { ...state.unreadCounts };
+            unreadCounts[newMessage.groupId] = (unreadCounts[newMessage.groupId] || 0) + 1;
+            return {
+              unreadCounts,
+              totalUnreadCount: Object.values(unreadCounts).reduce((a, b) => a + b, 0),
+            };
+          });
         }
       });
     }

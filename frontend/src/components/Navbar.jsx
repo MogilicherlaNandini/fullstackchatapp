@@ -1,9 +1,17 @@
 import { Link } from "react-router-dom";
+import {useState, useEffect} from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { LogOut, MessageSquare, Settings, User } from "lucide-react";
+import { LogOut, MessageSquare, Settings, User, Bell } from "lucide-react";
+import { useChatStore } from "../store/useChatStore";
 
 const Navbar = () => {
   const { logout, authUser } = useAuthStore();
+  const { totalUnreadCount, getNotificationCounts } = useChatStore();
+
+  // Fetch notification counts on component mount
+  useEffect(() => {
+    getNotificationCounts();
+  }, [getNotificationCounts]);
 
   return (
     <header
@@ -24,10 +32,7 @@ const Navbar = () => {
           <div className="flex items-center gap-2">
             <Link
               to={"/settings"}
-              className={`
-              btn btn-sm gap-2 transition-colors
-              
-              `}
+              className={`btn btn-sm gap-2 transition-colors`}
             >
               <Settings className="w-4 h-4" />
               <span className="hidden sm:inline">Settings</span>
@@ -44,6 +49,15 @@ const Navbar = () => {
                   <LogOut className="size-5" />
                   <span className="hidden sm:inline">Logout</span>
                 </button>
+
+                <div className="relative">
+                  <Bell className="w-6 h-6" />
+                  {totalUnreadCount > 0 && (
+                    <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full">
+                      {totalUnreadCount}
+                    </span>
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -52,4 +66,5 @@ const Navbar = () => {
     </header>
   );
 };
+
 export default Navbar;
