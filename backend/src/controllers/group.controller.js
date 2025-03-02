@@ -148,17 +148,45 @@ export const updateGroupMembers = async (req, res) => {
 };
 
 export const deleteGroupChatForUser = async (req, res) => {
-  const { groupId, userId } = req.params;
+  const { groupId } = req.params;
 
   try {
     await GroupMessage.updateMany(
       { groupId },
-      { $addToSet: { deletedFor: userId } }
+      { $addToSet: { deletedFor: req.user._id } }
     );
 
     res.status(200).json({ message: "Chat deleted for user" });
   } catch (error) {
     console.error("Error in deleteGroupChatForUser controller:", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+export const exitGroup = async (req, res) => {
+  const { groupId } = req.params;
+  const userId = req.user._id;
+
+  try {
+    // Remove the user from the group members
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ message: "Group not found" });
+    }
+
+    group.members = group.members.filter(member => member.toString() !== userId.toString());
+    await group.save();
+
+    // Send a message indicating that the user has left the group
+    const leaveMessage = new GroupMessage({
+      groupId,
+      senderId: userId,
+      text: `${req.user.fullName} has left the group.`,
+    });
+    await leaveMessage.save();
+
+    res.status(200).json({ message: "You have exited the group" });
+  } catch (error) {
+    console.error("Error in exitGroup controller:", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };

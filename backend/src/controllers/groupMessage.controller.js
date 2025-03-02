@@ -26,6 +26,11 @@ export const getGroupMessages = async (req, res) => {
       };
     }));
 
+    // Reset unread count for the selected group
+    await User.findByIdAndUpdate(userId, {
+      $set: { [`notificationCounts.${groupId}`]: 0 },
+    });
+
     res.status(200).json(decryptedMessages);
   } catch (error) {
     console.error("Error in getGroupMessages:", error.message);
@@ -64,6 +69,13 @@ export const sendGroupMessage = async (req, res) => {
           fileName,
           createdAt: newMessage.createdAt,
         });
+
+        // Increment unread count for the group members
+        if (user._id.toString() !== senderId) {
+          User.findByIdAndUpdate(user._id, {
+            $inc: { [`notificationCounts.${groupId}`]: 1 },
+          }).exec();
+        }
       }
     });
 

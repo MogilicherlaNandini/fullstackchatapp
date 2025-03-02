@@ -9,22 +9,31 @@ import ProfilePage from "./pages/ProfilePage";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./store/useAuthStore";
 import { useThemeStore } from "./store/useThemeStore";
+import { useChatStore } from "./store/useChatStore"; // Import useChatStore
 import { useEffect } from "react";
 
 import { Loader } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 
 const App = () => {
-  const { authUser, checkAuth, isCheckingAuth, onlineUsers } = useAuthStore();
+  const { authUser, checkAuth, isCheckingAuth, connectSocket, disconnectSocket } = useAuthStore(); // Destructure connectSocket and disconnectSocket
   const { theme } = useThemeStore();
-
-  console.log({ onlineUsers });
+  const { subscribeToMessages } = useChatStore(); // Destructure subscribeToMessages
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
 
-  console.log({ authUser });
+  useEffect(() => {
+    if (authUser) {
+      connectSocket();
+      subscribeToMessages();
+
+      return () => {
+        disconnectSocket();
+      };
+    }
+  }, [authUser, connectSocket, disconnectSocket, subscribeToMessages]);
 
   if (isCheckingAuth && !authUser)
     return (
@@ -49,4 +58,5 @@ const App = () => {
     </div>
   );
 };
+
 export default App;
