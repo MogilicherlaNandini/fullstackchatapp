@@ -80,12 +80,38 @@ export const useChatStore = create((set, get) => ({
   selectedGroup: null,
   isUsersLoading: false,
   isMessagesLoading: false,
-  deleteGroupChatForUser: async (groupId, userId) => {
+   
+  deleteMessages: async (messageIds) => {
     try {
-      await axiosInstance.delete(`/groups/${groupId}/messages/${userId}`);
+      await axiosInstance.post("/messages/delete", { messageIds });
+      set((state) => ({
+        messages: state.messages.filter((message) => !messageIds.includes(message._id)),
+      }));
+      toast.success("Messages deleted successfully");
     } catch (error) {
-      console.error("Error deleting group chat for user:", error);
-      throw error;
+      toast.error("Failed to delete messages");
+    }
+  },
+
+  deleteMessages: async (messageIds) => {
+    try {
+      await axiosInstance.post("/messages/delete", { messageIds });
+      set((state) => ({
+        messages: state.messages.filter((message) => !messageIds.includes(message._id)),
+      }));
+      toast.success("Messages deleted successfully");
+    } catch (error) {
+      toast.error("Failed to delete messages");
+    }
+  },
+
+  clearChat: async (userId) => {
+    try {
+      await axiosInstance.post(`/messages/clear/${userId}`);
+      set({ messages: [] });
+      toast.success("Chat cleared successfully");
+    } catch (error) {
+      toast.error("Failed to clear chat");
     }
   },
 
@@ -196,6 +222,7 @@ export const useChatStore = create((set, get) => ({
       toast.error(error.response.data.message);
     }
   },
+  
 
   subscribeToMessages: (isGroup = false) => {
     const { selectedUser, selectedGroup } = get();

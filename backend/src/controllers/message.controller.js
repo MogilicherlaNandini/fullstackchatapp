@@ -98,18 +98,16 @@ export const getMessages = async (req, res) => {
         { senderId: myId, receiverId: userToChatId },
         { senderId: userToChatId, receiverId: myId },
       ],
+      deletedBy: { $ne: myId },
     });
 
-    // 🔓 Decrypt messages before sending
     const decryptedMessages = messages.map((message) => {
       const decryptedText = message.text ? to_Decrypt(message.text) : null;
       const decryptedFile = message.file ? decryptFile(message.file) : null;
 
-       // Debugging log
-
       return {
         ...message.toObject(),
-        text: decryptedText, // Ensure decrypted text is sent
+        text: decryptedText,
         file: decryptedFile ? decryptedFile.toString("base64") : null,
       };
     });
@@ -121,6 +119,7 @@ export const getMessages = async (req, res) => {
   }
 };
 
+ 
 // ✅ Send a new message (encrypting text & files before saving)
 export const sendMessage = async (req, res) => {
   try {
@@ -168,6 +167,40 @@ export const sendMessage = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error in sendMessage:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+export const deleteMessages = async (req, res) => {
+  try {
+    const { messageIds } = req.body;
+    const userId = req.user._id;
+    await Message.updateMany(
+      { _id: { $in: messageIds } },
+      { $addToSet: { deletedBy: userId } }
+    );
+    res.status(200).json({ message: "Messages deleted successfully" });
+  } catch (error) {
+    console.error("❌ Error in deleteMessages:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const clearChat = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const myId = req.user._id;
+    await Message.updateMany(
+      {
+        $or: [
+          { senderId: myId, receiverId: userId },
+          { senderId: userId, receiverId: myId },
+        ],
+      },
+      { $addToSet: { deletedBy: myId } }
+    );
+    res.status(200).json({ message: "Chat cleared successfully" });
+  } catch (error) {
+    console.error("❌ Error in clearChat:", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };

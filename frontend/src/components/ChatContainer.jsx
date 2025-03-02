@@ -226,7 +226,7 @@
 // export default ChatContainer;
 // //.......................................................
 import { useChatStore } from "../store/useChatStore";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
@@ -241,10 +241,14 @@ const ChatContainer = () => {
     selectedUser,
     subscribeToMessages,
     unsubscribeFromMessages,
+    deleteMessages,
+    clearChat,
   } = useChatStore();
 
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedMessages, setSelectedMessages] = useState([]);
 
   // Fetch messages on user selection change
   useEffect(() => {
@@ -284,10 +288,26 @@ const ChatContainer = () => {
     }
   };
 
+  const handleSelectMessage = (messageId) => {
+    setSelectedMessages((prev) =>
+      prev.includes(messageId) ? prev.filter((id) => id !== messageId) : [...prev, messageId]
+    );
+  };
+
+  const handleDeleteSelectedMessages = async () => {
+    await deleteMessages(selectedMessages);
+    setSelectedMessages([]);
+    setIsDeleting(false);
+  };
+
+  const handleClearChat = async () => {
+    await clearChat(selectedUser._id);
+  };
+
   if (isMessagesLoading) {
     return (
       <div className="flex-1 flex flex-col overflow-auto">
-        <ChatHeader />
+        <ChatHeader setIsDeleting={setIsDeleting} />
         <MessageSkeleton />
         <MessageInput />
       </div>
@@ -296,7 +316,7 @@ const ChatContainer = () => {
 
   return (
     <div className="flex-1 flex flex-col overflow-auto">
-      <ChatHeader />
+      <ChatHeader setIsDeleting={setIsDeleting} />
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
           <div
@@ -304,6 +324,14 @@ const ChatContainer = () => {
             className={`chat ${message.senderId === authUser._id ? "chat-end" : "chat-start"}`}
             ref={messageEndRef}
           >
+            {isDeleting && (
+              <input
+                type="checkbox"
+                checked={selectedMessages.includes(message._id)}
+                onChange={() => handleSelectMessage(message._id)}
+                className="mr-2"
+              />
+            )}
             <div className="chat-image avatar">
               <div className="size-10 rounded-full border">
                 <img
@@ -350,10 +378,20 @@ const ChatContainer = () => {
         ))}
       </div>
 
+      {isDeleting && (
+        <div className="p-4 flex justify-end">
+          <button onClick={handleDeleteSelectedMessages} className="btn btn-danger">
+            Delete Selected
+          </button>
+          <button onClick={() => setIsDeleting(false)} className="btn btn-secondary ml-2">
+            Cancel
+          </button>
+        </div>
+      )}
+
       <MessageInput />
     </div>
   );
 };
 
-// ✅ Ensure default export is present
 export default ChatContainer;

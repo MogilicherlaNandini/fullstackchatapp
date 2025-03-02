@@ -29,28 +29,12 @@ import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema(
   {
-    senderId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    receiverId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-    groupId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Group",
-    },
-    text: {
-      type: String,
-    },
-    file: {
-      type: String,
-    },
-    fileName: {
-      type: String,
-    },
+    senderId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    receiverId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    text: { type: String },
+    file: { type: Buffer },
+    fileName: { type: String },
+    deletedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },
   { timestamps: true }
 );

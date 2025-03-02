@@ -1,10 +1,22 @@
-import { X } from "lucide-react";
+import { useState } from "react";
+import { X, MoreVertical } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 
-const ChatHeader = () => {
-  const { selectedUser, setSelectedUser } = useChatStore();
+const ChatHeader = ({ setIsDeleting }) => {
+  const { selectedUser, setSelectedUser, clearChat } = useChatStore();
   const { onlineUsers } = useAuthStore();
+  const [showMenu, setShowMenu] = useState(false);
+
+  const handleDeleteMessages = () => {
+    setIsDeleting(true);
+    setShowMenu(false);
+  };
+
+  const handleClearChat = async () => {
+    await clearChat(selectedUser._id);
+    setShowMenu(false);
+  };
 
   return (
     <div className="p-2.5 border-b border-base-300">
@@ -26,6 +38,29 @@ const ChatHeader = () => {
           </div>
         </div>
 
+        {/* Menu button */}
+        <div className="relative">
+          <button onClick={() => setShowMenu(!showMenu)}>
+            <MoreVertical />
+          </button>
+          {showMenu && (
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg">
+              <button
+                onClick={handleDeleteMessages}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Delete Messages
+              </button>
+              <button
+                onClick={handleClearChat}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Clear Chat
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Close button */}
         <button onClick={() => setSelectedUser(null)}>
           <X />
@@ -34,4 +69,5 @@ const ChatHeader = () => {
     </div>
   );
 };
+
 export default ChatHeader;
