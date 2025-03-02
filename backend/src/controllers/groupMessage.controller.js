@@ -8,7 +8,12 @@ import { to_Encrypt, to_Decrypt, encryptFile, decryptFile } from "../lib/aes.js"
 export const getGroupMessages = async (req, res) => {
   try {
     const { groupId } = req.params;
-    const messages = await GroupMessage.find({ groupId });
+    const userId = req.user._id;
+
+    const messages = await GroupMessage.find({
+      groupId,
+      deletedFor: { $ne: userId }
+    });
 
     const decryptedMessages = await Promise.all(messages.map(async (message) => {
       const sender = await User.findById(message.senderId).select('fullName profilePic');
