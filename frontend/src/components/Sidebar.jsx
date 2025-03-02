@@ -1,18 +1,30 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
-import { Users } from "lucide-react";
+import { Users, PlusCircle } from "lucide-react";
+import AddGroupModal from "./AddGroupModal";
 
 const Sidebar = () => {
-  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
-
+  const { getUsers, getGroups, users, groups, selectedUser, selectedGroup, setSelectedUser, setSelectedGroup, getMessages, isUsersLoading } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
+  const [showAddGroupModal, setShowAddGroupModal] = useState(false);
 
   useEffect(() => {
     getUsers();
-  }, [getUsers]);
+    getGroups(); // Fetch groups
+  }, [getUsers, getGroups]);
+
+  const handleUserClick = (user) => {
+    setSelectedUser(user);
+    getMessages(user._id, false); // Fetch messages for the selected user
+  };
+
+  const handleGroupClick = (group) => {
+    setSelectedGroup(group);
+    getMessages(group._id, true); // Fetch messages for the selected group
+  };
 
   const filteredUsers = showOnlineOnly
     ? users.filter((user) => onlineUsers.includes(user._id))
@@ -23,9 +35,14 @@ const Sidebar = () => {
   return (
     <aside className="h-full w-20 lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200">
       <div className="border-b border-base-300 w-full p-5">
-        <div className="flex items-center gap-2">
-          <Users className="size-6" />
-          <span className="font-medium hidden lg:block">Contacts</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="size-6" />
+            <span className="font-medium hidden lg:block">Contacts</span>
+          </div>
+          <button onClick={() => setShowAddGroupModal(true)}>
+            <PlusCircle className="size-6 text-primary" />
+          </button>
         </div>
         {/* TODO: Online filter toggle */}
         <div className="mt-3 hidden lg:flex items-center gap-2">
@@ -46,7 +63,7 @@ const Sidebar = () => {
         {filteredUsers.map((user) => (
           <button
             key={user._id}
-            onClick={() => setSelectedUser(user)}
+            onClick={() => handleUserClick(user)}
             className={`
               w-full p-3 flex items-center gap-3
               hover:bg-base-300 transition-colors
@@ -77,11 +94,41 @@ const Sidebar = () => {
           </button>
         ))}
 
+        {groups.map((group) => (
+          <button
+            key={group._id}
+            onClick={() => handleGroupClick(group)}
+            className={`
+              w-full p-3 flex items-center gap-3
+              hover:bg-base-300 transition-colors
+              ${selectedGroup?._id === group._id ? "bg-base-300 ring-1 ring-base-300" : ""}
+            `}
+          >
+            <div className="relative mx-auto lg:mx-0">
+              <img
+                src={group.pic || "/avatar.png"}
+                alt={group.name}
+                className="size-12 object-cover rounded-full"
+              />
+            </div>
+
+            {/* Group info - only visible on larger screens */}
+            <div className="hidden lg:block text-left min-w-0">
+              <div className="font-medium truncate">{group.name}</div>
+            </div>
+          </button>
+        ))}
+
         {filteredUsers.length === 0 && (
           <div className="text-center text-zinc-500 py-4">No online users</div>
         )}
       </div>
+
+      {showAddGroupModal && (
+        <AddGroupModal onClose={() => setShowAddGroupModal(false)} />
+      )}
     </aside>
   );
 };
+
 export default Sidebar;

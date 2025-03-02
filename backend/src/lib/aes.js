@@ -1,7 +1,8 @@
 import aes256 from "aes256";
 import dotenv from "dotenv";
 
-dotenv.config();
+dotenv.config({path:"./src/.env"});
+
 
 const secret_key = process.env.ENCRYPTION_KEY;
 
