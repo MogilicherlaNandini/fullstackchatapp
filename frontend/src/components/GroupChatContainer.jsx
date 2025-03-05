@@ -65,7 +65,9 @@ const GroupChatContainer = () => {
       <div className="flex-1 flex flex-col overflow-auto">
         <GroupChatHeader />
         <MessageSkeleton />
-        <MessageInput isGroupChat={true} groupId={selectedGroup._id} onSendMessage={handleSendMessage} />
+        {selectedGroup.admins.includes(authUser._id) && (
+          <MessageInput isGroupChat={true} groupId={selectedGroup._id} onSendMessage={handleSendMessage} />
+        )}
       </div>
     );
   }
@@ -106,8 +108,26 @@ const GroupChatContainer = () => {
                 />
               )}
 
+              {/* Video File */}
+              {message.file && /\.(mp4|webm|ogg)$/i.test(message.fileName) && (
+                <video
+                  src={`data:video/webm;base64,${message.file}`}
+                  controls
+                  className="mb-2 rounded-lg max-w-xs"
+                />
+              )}
+
+              {/* Audio File */}
+              {message.file && /\.(mp3|wav|ogg)$/i.test(message.fileName) && (
+                <audio
+                  src={`data:audio/ogg;base64,${message.file}`}
+                  controls
+                  className="mb-2 rounded-lg max-w-xs"
+                />
+              )}
+
               {/* Other File Types (Download) */}
-              {message.file && !/\.(jpeg|jpg|png|gif)$/i.test(message.fileName) && (
+              {message.file && !/\.(jpeg|jpg|png|gif|mp4|webm|ogg|mp3|wav)$/i.test(message.fileName) && (
                 <div className="mb-2 rounded-lg">
                   <button
                     onClick={() => handleDownload(`data:application/octet-stream;base64,${message.file}`, message.fileName)}
@@ -124,7 +144,9 @@ const GroupChatContainer = () => {
           </div>
         ))}
       </div>
-      <MessageInput isGroupChat={true} groupId={selectedGroup._id} onSendMessage={handleSendMessage} />
+      {selectedGroup.admins.includes(authUser._id) && (
+        <MessageInput isGroupChat={true} groupId={selectedGroup._id} onSendMessage={handleSendMessage} />
+      )}
     </div>
   );
 };

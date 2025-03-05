@@ -227,14 +227,21 @@
 //..........
 import { useRef, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
-import { Paperclip, Send, X } from "lucide-react";
+import { Paperclip, Send, X, Camera } from "lucide-react";
 import toast from "react-hot-toast";
+import Webcam from "react-webcam";
 
 const MessageInput = ({ isGroupChat, groupId }) => {
   const [text, setText] = useState("");
   const [filePreview, setFilePreview] = useState(null);
   const [fileName, setFileName] = useState("");
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedChunks, setRecordedChunks] = useState([]);
+  const [recordingTime, setRecordingTime] = useState(0);
   const fileInputRef = useRef(null);
+  const webcamRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
   const { sendMessage, sendGroupMessage } = useChatStore();
 
   const handleFileChange = (e) => {
@@ -285,6 +292,58 @@ const MessageInput = ({ isGroupChat, groupId }) => {
     }
   };
 
+  const handleCapturePhoto = () => {
+    const imageSrc = webcamRef.current.getScreenshot();
+    fetch(imageSrc)
+      .then(res => res.blob())
+      .then(blob => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setFilePreview(reader.result); // Base64 image
+          setFileName("photo.jpg");
+          setIsCameraOpen(false);
+        };
+        reader.readAsDataURL(blob);
+      });
+  };
+
+  const handleStartRecording = () => {
+    setIsRecording(true);
+    setRecordingTime(0);
+    mediaRecorderRef.current = new MediaRecorder(webcamRef.current.stream, {
+      mimeType: "video/webm;codecs=vp8,opus",
+    });
+    mediaRecorderRef.current.addEventListener("dataavailable", handleDataAvailable);
+    mediaRecorderRef.current.start();
+    const interval = setInterval(() => {
+      setRecordingTime((prev) => prev + 1);
+    }, 1000);
+    mediaRecorderRef.current.addEventListener("stop", () => clearInterval(interval));
+  };
+
+  const handleStopRecording = () => {
+    setIsRecording(false);
+    mediaRecorderRef.current.stop();
+  };
+
+  const handleDataAvailable = ({ data }) => {
+    if (data.size > 0) {
+      setRecordedChunks((prev) => prev.concat(data));
+    }
+  };
+
+  const handleSaveRecording = () => {
+    const blob = new Blob(recordedChunks, { type: "video/webm" });
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFilePreview(reader.result); // Base64 video
+      setFileName("video.webm");
+      setRecordedChunks([]);
+      setIsCameraOpen(false);
+    };
+    reader.readAsDataURL(blob);
+  };
+
   return (
     <div className="p-4 w-full relative">
       {filePreview && (
@@ -297,9 +356,11 @@ const MessageInput = ({ isGroupChat, groupId }) => {
                 className="w-20 h-20 object-cover rounded-lg border border-zinc-700"
               />
             ) : (
-              <div className="w-20 h-20 flex items-center justify-center rounded-lg border border-zinc-700">
-                <span>{fileName}</span>
-              </div>
+              <video
+                src={filePreview}
+                controls
+                className="w-20 h-20 object-cover rounded-lg border border-zinc-700"
+              />
             )}
             <button
               onClick={removeFile}
@@ -336,6 +397,13 @@ const MessageInput = ({ isGroupChat, groupId }) => {
           >
             <Paperclip size={30} />
           </button>
+          <button
+            type="button"
+            className="hidden sm:flex btn btn-circle text-zinc-400"
+            onClick={() => setIsCameraOpen(true)}
+          >
+            <Camera size={30} />
+          </button>
         </div>
         <button
           type="submit"
@@ -345,6 +413,55 @@ const MessageInput = ({ isGroupChat, groupId }) => {
           <Send size={22} />
         </button>
       </form>
+
+      {isCameraOpen && (
+        <div className="flex flex-col items-center">
+        <Webcam
+          audio={true}
+          ref={webcamRef}
+          screenshotFormat="image/jpeg"
+          className="w-64 h-64 object-cover rounded-lg border-2 border-white"
+          videoConstraints={{ width: 256, height: 256, facingMode: "user" }}
+        />
+          <div className="flex gap-2 mt-4">
+            <button
+              className="btn btn-primary"
+              onClick={handleCapturePhoto}
+            >
+              Capture Photo
+            </button>
+            {isRecording ? (
+              <button
+                className="btn btn-danger"
+                onClick={handleStopRecording}
+              >
+                Stop Recording ({recordingTime}s)
+              </button>
+            ) : (
+              <button
+                className="btn btn-primary"
+                onClick={handleStartRecording}
+              >
+                Start Recording
+              </button>
+            )}
+            <button
+              className="btn btn-secondary"
+              onClick={() => setIsCameraOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+          {recordedChunks.length > 0 && (
+            <button
+              className="btn btn-success mt-2"
+              onClick={handleSaveRecording}
+            >
+              Save Recording
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

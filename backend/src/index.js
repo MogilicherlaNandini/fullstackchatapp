@@ -9,6 +9,7 @@ import messageRoutes from "./routes/message.route.js";
 import groupRoutes from './routes/group.route.js';
 import { app, server } from "./lib/socket.js";
 
+
 dotenv.config({ path: "./src/.env" });
 const PORT = process.env.PORT;
 const __dirname = path.resolve();

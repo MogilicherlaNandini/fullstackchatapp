@@ -21,6 +21,11 @@ const groupMessageSchema = new mongoose.Schema(
     fileName: {
       type: String,
     },
+    type: {
+      type: String,
+      enum: ['message', 'system'],
+      default: 'message',
+    },
     deletedFor: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

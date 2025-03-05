@@ -77,6 +77,7 @@ export const createGroup = async (req, res) => {
       name,
       pic: profilePicUrl,
       members: allMembers,
+      admins: [creatorId], // Set the creator as the initial admin
     });
 
     await newGroup.save();
@@ -101,8 +102,14 @@ export const getGroups = async (req, res) => {
 export const updateGroupProfile = async (req, res) => {
   const { groupId } = req.params;
   const { name, pic } = req.body;
+  const userId = req.user._id;
 
   try {
+    const group = await Group.findById(groupId);
+    if (!group.admins.includes(userId)) {
+      return res.status(403).json({ message: "Only admins can update the group profile" });
+    }
+
     let profilePicUrl = null;
     if (pic) {
       try {
@@ -116,13 +123,11 @@ export const updateGroupProfile = async (req, res) => {
       }
     }
 
-    const updatedGroup = await Group.findByIdAndUpdate(
-      groupId,
-      { name, pic: profilePicUrl },
-      { new: true }
-    ).populate("members", "fullName profilePic");
+    group.name = name || group.name;
+    group.pic = profilePicUrl || group.pic;
+    await group.save();
 
-    res.status(200).json(updatedGroup);
+    res.status(200).json(group);
   } catch (error) {
     console.error("Error in updateGroupProfile controller:", error.message);
     res.status(500).json({ message: "Internal Server Error" });
@@ -132,17 +137,65 @@ export const updateGroupProfile = async (req, res) => {
 export const updateGroupMembers = async (req, res) => {
   const { groupId } = req.params;
   const { members } = req.body;
+  const userId = req.user._id;
 
   try {
-    const updatedGroup = await Group.findByIdAndUpdate(
-      groupId,
-      { members },
-      { new: true }
-    ).populate("members", "fullName profilePic");
+    const group = await Group.findById(groupId);
+    if (!group.admins.includes(userId)) {
+      return res.status(403).json({ message: "Only admins can update group members" });
+    }
 
-    res.status(200).json(updatedGroup);
+    group.members = members;
+    await group.save();
+
+    res.status(200).json(group);
   } catch (error) {
     console.error("Error in updateGroupMembers controller:", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const makeAdmin = async (req, res) => {
+  const { groupId, userId } = req.params;
+  const adminId = req.user._id;
+
+  try {
+    const group = await Group.findById(groupId);
+    if (!group.admins.includes(adminId)) {
+      return res.status(403).json({ message: "Only admins can make other users admin" });
+    }
+
+    if (!group.members.includes(userId)) {
+      return res.status(404).json({ message: "User is not a member of the group" });
+    }
+
+    group.admins.push(userId);
+    await group.save();
+
+    res.status(200).json(group);
+  } catch (error) {
+    console.error("Error in makeAdmin controller:", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const removeUser = async (req, res) => {
+  const { groupId, userId } = req.params;
+  const adminId = req.user._id;
+
+  try {
+    const group = await Group.findById(groupId);
+    if (!group.admins.includes(adminId)) {
+      return res.status(403).json({ message: "Only admins can remove users" });
+    }
+
+    group.members = group.members.filter(member => member.toString() !== userId);
+    group.admins = group.admins.filter(admin => admin.toString() !== userId);
+    await group.save();
+
+    res.status(200).json(group);
+  } catch (error) {
+    console.error("Error in removeUser controller:", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
@@ -162,6 +215,7 @@ export const deleteGroupChatForUser = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 export const exitGroup = async (req, res) => {
   const { groupId } = req.params;
   const userId = req.user._id;

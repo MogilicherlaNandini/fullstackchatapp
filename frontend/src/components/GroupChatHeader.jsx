@@ -52,8 +52,12 @@ const GroupChatHeader = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showUpdateProfileModal, setShowUpdateProfileModal] = useState(false);
   const [showAddMembersModal, setShowAddMembersModal] = useState(false);
+  const [showMakeAdminModal, setShowMakeAdminModal] = useState(false);
+  const [showRemoveUserModal, setShowRemoveUserModal] = useState(false);
 
   if (!selectedGroup) return null;
+
+  const isAdmin = selectedGroup.admins.includes(authUser._id);
 
   const handleExitGroup = async () => {
     try {
@@ -79,6 +83,30 @@ const GroupChatHeader = () => {
     } catch (error) {
       console.error("Error deleting chat:", error);
       toast.error("Failed to delete chat.");
+    }
+  };
+
+  const handleMakeAdmin = async (userId) => {
+    try {
+      await axiosInstance.post(`/groups/${selectedGroup._id}/make-admin/${userId}`);
+      toast.success("User has been made an admin.");
+      setShowMakeAdminModal(false);
+      getGroups();
+    } catch (error) {
+      console.error("Error making user admin:", error);
+      toast.error("Failed to make user admin.");
+    }
+  };
+
+  const handleRemoveUser = async (userId) => {
+    try {
+      await axiosInstance.post(`/groups/${selectedGroup._id}/remove-user/${userId}`);
+      toast.success("User has been removed from the group.");
+      setShowRemoveUserModal(false);
+      getGroups();
+    } catch (error) {
+      console.error("Error removing user:", error);
+      toast.error("Failed to remove user.");
     }
   };
 
@@ -109,24 +137,46 @@ const GroupChatHeader = () => {
           </button>
           {showMenu && (
             <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg">
-              <button
-                onClick={() => {
-                  setShowMenu(false);
-                  setShowUpdateProfileModal(true);
-                }}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                Update Profile
-              </button>
-              <button
-                onClick={() => {
-                  setShowMenu(false);
-                  setShowAddMembersModal(true);
-                }}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                Add New Members
-              </button>
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      setShowUpdateProfileModal(true);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Update Profile
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      setShowAddMembersModal(true);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Add New Members
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      setShowMakeAdminModal(true);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Make Admin
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      setShowRemoveUserModal(true);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    Remove User
+                  </button>
+                </>
+              )}
               <button
                 onClick={() => {
                   setShowMenu(false);
@@ -169,6 +219,66 @@ const GroupChatHeader = () => {
           group={selectedGroup}
           onClose={() => setShowAddMembersModal(false)}
         />
+      )}
+
+      {/* Make Admin Modal */}
+      {showMakeAdminModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-4 rounded-lg shadow-lg w-80">
+            <h3 className="text-lg font-medium mb-4">Make Admin</h3>
+            <ul>
+              {selectedGroup.members
+                .filter((member) => !selectedGroup.admins.includes(member._id))
+                .map((member) => (
+                  <li key={member._id} className="flex justify-between items-center mb-2">
+                    <span>{member.fullName}</span>
+                    <button
+                      onClick={() => handleMakeAdmin(member._id)}
+                      className="text-blue-500 underline"
+                    >
+                      Make Admin
+                    </button>
+                  </li>
+                ))}
+            </ul>
+            <button
+              onClick={() => setShowMakeAdminModal(false)}
+              className="mt-4 w-full text-center text-sm text-gray-700 hover:bg-gray-100"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Remove User Modal */}
+      {showRemoveUserModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-4 rounded-lg shadow-lg w-80">
+            <h3 className="text-lg font-medium mb-4">Remove User</h3>
+            <ul>
+              {selectedGroup.members
+                .filter((member) => member._id !== authUser._id)
+                .map((member) => (
+                  <li key={member._id} className="flex justify-between items-center mb-2">
+                    <span>{member.fullName}</span>
+                    <button
+                      onClick={() => handleRemoveUser(member._id)}
+                      className="text-red-500 underline"
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+            </ul>
+            <button
+              onClick={() => setShowRemoveUserModal(false)}
+              className="mt-4 w-full text-center text-sm text-gray-700 hover:bg-gray-100"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
