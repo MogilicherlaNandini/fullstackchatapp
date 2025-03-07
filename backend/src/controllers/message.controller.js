@@ -103,12 +103,22 @@ export const getMessages = async (req, res) => {
 
     const decryptedMessages = messages.map((message) => {
       const decryptedText = message.text ? to_Decrypt(message.text) : null;
-      const decryptedFile = message.file ? decryptFile(message.file) : null;
+      let decryptedFile = message.file ? decryptFile(message.file) : null;
+
+      let fileBase64 = null;
+      let mimeType = null;
+
+      if (decryptedFile) {
+        fileBase64 = decryptedFile.toString("base64");
+        mimeType = message.fileType || "application/octet-stream"; // Ensure file type is included
+      }
 
       return {
         ...message.toObject(),
         text: decryptedText,
-        file: decryptedFile ? decryptedFile.toString("base64") : null,
+        file: fileBase64,
+        fileName: message.fileName,
+        mimeType: mimeType,
       };
     });
 
@@ -123,6 +133,7 @@ export const getMessages = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 // ✅ Send a new message (encrypting text & files before saving)
 export const sendMessage = async (req, res) => {

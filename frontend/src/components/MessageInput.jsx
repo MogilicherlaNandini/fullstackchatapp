@@ -225,9 +225,9 @@
 // };
 // export default MessageInput;
 //..........
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
-import { Paperclip, Send, X, Camera } from "lucide-react";
+import { Paperclip, Send, X, Camera, Mic } from "lucide-react";
 import toast from "react-hot-toast";
 import Webcam from "react-webcam";
 
@@ -239,10 +239,28 @@ const MessageInput = ({ isGroupChat, groupId }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedChunks, setRecordedChunks] = useState([]);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [isAudioRecording, setIsAudioRecording] = useState(false);
+  const [audioChunks, setAudioChunks] = useState([]);
+  const [audioPreview, setAudioPreview] = useState(null);
+  const [showRecordingControls, setShowRecordingControls] = useState(false);
+  const [audioRecordingTime, setAudioRecordingTime] = useState(0); // New state variable for audio recording time
   const fileInputRef = useRef(null);
   const webcamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
+  const audioRecorderRef = useRef(null);
   const { sendMessage, sendGroupMessage } = useChatStore();
+
+  useEffect(() => {
+    let interval;
+    if (isAudioRecording) {
+      interval = setInterval(() => {
+        setAudioRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isAudioRecording]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -264,13 +282,13 @@ const MessageInput = ({ isGroupChat, groupId }) => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!text.trim() && !filePreview) return;
+    if (!text.trim() && !filePreview && !audioPreview) return;
 
     try {
       const messageData = {
         text: text.trim(),
-        file: filePreview ? filePreview.split(',')[1] : null, // Send base64 content
-        fileName: fileName,
+        file: filePreview ? filePreview.split(',')[1] : (audioPreview ? audioPreview.split(',')[1] : null), // Send base64 content
+        fileName: fileName || (audioPreview ? "audio.webm" : ""),
       };
 
       if (isGroupChat) {
@@ -285,6 +303,7 @@ const MessageInput = ({ isGroupChat, groupId }) => {
       setText("");
       setFilePreview(null);
       setFileName("");
+      setAudioPreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -344,6 +363,50 @@ const MessageInput = ({ isGroupChat, groupId }) => {
     reader.readAsDataURL(blob);
   };
 
+  const handleStartAudioRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setIsAudioRecording(true);
+      setAudioChunks([]); // Reset previous recordings
+
+      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      audioRecorderRef.current = recorder;
+
+      const chunks = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAudioPreview(reader.result); // Convert to Base64
+        };
+        reader.readAsDataURL(blob);
+      };
+
+      recorder.start();
+    } catch (error) {
+      console.error("Failed to start audio recording:", error);
+      toast.error("Failed to start audio recording.");
+    }
+  };
+
+  const handleStopAudioRecording = () => {
+    if (audioRecorderRef.current) {
+      audioRecorderRef.current.stop();
+      setIsAudioRecording(false);
+    }
+  };
+
+  const removeAudio = () => {
+    setAudioPreview(null);
+    setAudioChunks([]);
+  };
+
   return (
     <div className="p-4 w-full relative">
       {filePreview && (
@@ -355,8 +418,14 @@ const MessageInput = ({ isGroupChat, groupId }) => {
                 alt="Preview"
                 className="w-20 h-20 object-cover rounded-lg border border-zinc-700"
               />
-            ) : (
+            ) : filePreview.startsWith("data:video/") ? (
               <video
+                src={filePreview}
+                controls
+                className="w-20 h-20 object-cover rounded-lg border border-zinc-700"
+              />
+            ) : (
+              <audio
                 src={filePreview}
                 controls
                 className="w-20 h-20 object-cover rounded-lg border border-zinc-700"
@@ -364,6 +433,25 @@ const MessageInput = ({ isGroupChat, groupId }) => {
             )}
             <button
               onClick={removeFile}
+              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300 flex items-center justify-center"
+              type="button"
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {audioPreview && (
+        <div className="mb-3 flex items-center gap-2">
+          <div className="relative">
+            <audio
+              src={audioPreview}
+              controls
+              className="w-20 h-20 object-cover rounded-lg border border-zinc-700"
+            />
+            <button
+              onClick={removeAudio}
               className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300 flex items-center justify-center"
               type="button"
             >
@@ -404,25 +492,52 @@ const MessageInput = ({ isGroupChat, groupId }) => {
           >
             <Camera size={30} />
           </button>
+          <button
+            type="button"
+            className="hidden sm:flex btn btn-circle text-zinc-400"
+            onClick={() => setShowRecordingControls(!showRecordingControls)}
+          >
+            <Mic size={30} />
+          </button>
         </div>
         <button
           type="submit"
           className="btn btn-sm btn-circle"
-          disabled={!text.trim() && !fileName}
+          disabled={!text.trim() && !fileName && !audioPreview}
         >
           <Send size={22} />
         </button>
       </form>
+      
+      {showRecordingControls && (
+        <div className="flex gap-2 mt-2">
+          {isAudioRecording ? (
+            <button
+              className="btn btn-danger"
+              onClick={handleStopAudioRecording}
+            >
+              Stop Recording ({audioRecordingTime}s)
+            </button>
+          ) : (
+            <button
+              className="btn btn-primary"
+              onClick={handleStartAudioRecording}
+            >
+              Start Recording
+            </button>
+          )}
+        </div>
+      )}
 
       {isCameraOpen && (
         <div className="flex flex-col items-center">
-        <Webcam
-          audio={true}
-          ref={webcamRef}
-          screenshotFormat="image/jpeg"
-          className="w-64 h-64 object-cover rounded-lg border-2 border-white"
-          videoConstraints={{ width: 256, height: 256, facingMode: "user" }}
-        />
+          <Webcam
+            audio={true}
+            ref={webcamRef}
+            screenshotFormat="image/jpeg"
+            className="w-64 h-64 object-cover rounded-lg border-2 border-white"
+            videoConstraints={{ width: 256, height: 256, facingMode: "user" }}
+          />
           <div className="flex gap-2 mt-4">
             <button
               className="btn btn-primary"

@@ -11,12 +11,12 @@ const io = new Server(server, {
   },
 });
 
+// Store online users (userId -> socketId)
+const userSocketMap = {}; 
+
 export function getReceiverSocketId(userId) {
   return userSocketMap[userId];
 }
-
-// used to store online users
-const userSocketMap = {}; // {userId: socketId}
 
 io.on("connection", (socket) => {
   console.log("A user connected", socket.id);
@@ -24,9 +24,42 @@ io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
   if (userId) userSocketMap[userId] = socket.id;
 
-  // io.emit() is used to send events to all the connected clients
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
+  /** Handle Call Events */
+  socket.on("offer", ({ offer, senderId, receiverId }) => {
+    console.log(`Offer from ${senderId} to ${receiverId}`);
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("offer", { offer, senderId });
+    }
+  });
+
+  socket.on("answer", ({ answer, senderId, receiverId }) => {
+    console.log(`Answer from ${senderId} to ${receiverId}`);
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("answer", { answer, senderId });
+    }
+  });
+
+  socket.on("candidate", ({ candidate, senderId, receiverId }) => {
+    console.log(`ICE Candidate from ${senderId} to ${receiverId}`);
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("candidate", { candidate, senderId });
+    }
+  });
+
+  socket.on("call-ended", ({ senderId, receiverId }) => {
+    console.log(`Call ended by ${senderId}`);
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("call-ended");
+    }
+  });
+
+  /** Handle User Disconnection */
   socket.on("disconnect", () => {
     console.log("A user disconnected", socket.id);
     delete userSocketMap[userId];

@@ -241,6 +241,7 @@ const ChatContainer = () => {
     selectedUser,
     subscribeToMessages,
     unsubscribeFromMessages,
+    sendMessage,
     deleteMessages,
     clearChat,
   } = useChatStore();
@@ -250,13 +251,12 @@ const ChatContainer = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState([]);
 
-  // Fetch messages on user selection change
+  // Fetch messages when the selected user changes
   useEffect(() => {
     if (selectedUser?._id) {
       getMessages(selectedUser._id);
       subscribeToMessages();
     }
-
     return () => unsubscribeFromMessages();
   }, [selectedUser?._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
 
@@ -300,8 +300,10 @@ const ChatContainer = () => {
     setIsDeleting(false);
   };
 
-  const handleClearChat = async () => {
-    await clearChat(selectedUser._id);
+  const handleSendMessage = async (messageData) => {
+    if (messageData.text.trim() || messageData.file) {
+      await sendMessage(selectedUser._id, messageData);
+    }
   };
 
   if (isMessagesLoading) {
@@ -309,7 +311,7 @@ const ChatContainer = () => {
       <div className="flex-1 flex flex-col overflow-auto">
         <ChatHeader setIsDeleting={setIsDeleting} />
         <MessageSkeleton />
-        <MessageInput />
+        {selectedUser && <MessageInput onSendMessage={handleSendMessage} />}
       </div>
     );
   }
@@ -351,25 +353,46 @@ const ChatContainer = () => {
             </div>
             <div className="chat-bubble flex flex-col">
               {/* Image File */}
-              {message.file && /\.(jpeg|jpg|png|gif)$/i.test(message.file) && (
+              {message.file && message.mimeType?.startsWith("image/") && (
                 <img
-                  src={`data:image/jpeg;base64,${message.file}`}
+                  src={`data:${message.mimeType};base64,${message.file}`}
                   alt={message.fileName || "Image"}
                   className="mb-2 rounded-lg max-w-xs"
                 />
               )}
 
-              {/* Other File Types (Download) */}
-              {message.file && !/\.(jpeg|jpg|png|gif)$/i.test(message.file) && (
-                <div className="mb-2 rounded-lg">
-                  <button
-                    onClick={() => handleDownload(`data:application/octet-stream;base64,${message.file}`, message.fileName)}
-                    className="text-blue-500 underline"
-                  >
-                    {message.fileName || "Download File"}
-                  </button>
-                </div>
+              {/* Video File */}
+              {message.file && message.mimeType?.startsWith("video/") && (
+                <video
+                  src={`data:${message.mimeType};base64,${message.file}`}
+                  controls
+                  className="mb-2 rounded-lg max-w-xs"
+                />
               )}
+
+              {/* Audio File */}
+              {message.file && message.mimeType?.startsWith("audio/") && (
+                <audio
+                  src={`data:${message.mimeType};base64,${message.file}`}
+                  controls
+                  className="mb-2 rounded-lg max-w-xs"
+                />
+              )}
+
+              {/* Other File Types (Download) */}
+              {message.file &&
+                !message.mimeType?.startsWith("image/") &&
+                !message.mimeType?.startsWith("video/") &&
+                !message.mimeType?.startsWith("audio/") && (
+                  <div className="mb-2 rounded-lg">
+                    <button
+                      onClick={() => handleDownload(`data:${message.mimeType};base64,${message.file}`, message.fileName)}
+                      className="text-blue-500 underline"
+                    >
+                      {message.fileName || "Download File"}
+                    </button>
+                  </div>
+                )}
 
               {/* Text Message */}
               {message.text && <p>{message.text}</p>}
@@ -389,7 +412,7 @@ const ChatContainer = () => {
         </div>
       )}
 
-      <MessageInput />
+      {selectedUser && <MessageInput onSendMessage={handleSendMessage} />}
     </div>
   );
 };
