@@ -82,6 +82,13 @@ export const useChatStore = create((set, get) => ({
   isMessagesLoading: false,
   unreadCounts: {}, // Track unread messages for each contact or group
   totalUnreadCount: 0, // Total unread messages count
+  isReceivingCall: false,
+  incomingCallData: null,
+  callAccepted: false,
+
+  setReceivingCall: (isReceivingCall) => set({ isReceivingCall }),
+  setIncomingCallData: (incomingCallData) => set({ incomingCallData }),
+  setCallAccepted: (callAccepted) => set({ callAccepted }),
 
   deleteMessages: async (messageIds) => {
     try {
@@ -94,6 +101,7 @@ export const useChatStore = create((set, get) => ({
       toast.error("Failed to delete messages");
     }
   },
+
   deleteGroupChatForUser: async (groupId) => {
     try {
       await axiosInstance.post(`/groups/${groupId}/delete`);
@@ -106,6 +114,7 @@ export const useChatStore = create((set, get) => ({
       toast.error("Failed to delete group chat");
     }
   },
+
   clearChat: async (userId) => {
     try {
       await axiosInstance.post(`/messages/clear/${userId}`);
@@ -287,13 +296,39 @@ export const useChatStore = create((set, get) => ({
         });
       }
     });
-  },
 
+    socket.on("offer", ({ offer, senderId, callerName }) => {
+      set({
+        isReceivingCall: true,
+        incomingCallData: { offer, senderId, callerName },
+      });
+    });
+
+    socket.on("call-rejected", () => {
+      set({
+        isReceivingCall: false,
+        incomingCallData: null,
+      });
+      toast.error("Call was rejected by the receiver.");
+    });
+
+    socket.on("call-ended", () => {
+      set({
+        isReceivingCall: false,
+        incomingCallData: null,
+        callAccepted: false,
+      });
+      toast.info("Call ended.");
+    });
+  },
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
     socket.off("newMessage");
     socket.off("newGroupMessage");
+    socket.off("offer");
+    socket.off("call-rejected");
+    socket.off("call-ended");
   },
 
   setSelectedUser: (selectedUser) => set({ selectedUser, selectedGroup: null }),

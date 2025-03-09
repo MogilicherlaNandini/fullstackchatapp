@@ -1,12 +1,21 @@
-import { useState } from "react";
-import { X, MoreVertical } from "lucide-react";
+import { useState, useRef } from "react";
+import { X, MoreVertical, Video } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
+import CallContainer from "./CallContainer"; // Import CallContainer component
 
 const ChatHeader = ({ setIsDeleting }) => {
+  const { authUser } = useAuthStore();
   const { selectedUser, setSelectedUser, clearChat } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showMenu, setShowMenu] = useState(false);
+  const [isVideoCall, setIsVideoCall] = useState(false); // State to manage video call visibility
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const peerConnectionRef = useRef(); // ✅ Ensure peerConnectionRef is initialized
+  peerConnectionRef.current = peerConnectionRef.current || null; // ✅ Prevent undefined errors
+  const iceCandidateQueue = useRef([]);
+  const socket = useAuthStore((state) => state.socket);
 
   const handleDeleteMessages = () => {
     setIsDeleting(true);
@@ -18,18 +27,25 @@ const ChatHeader = ({ setIsDeleting }) => {
     setShowMenu(false);
   };
 
+  const handleVideoCall = async () => {
+    setIsVideoCall(true); // Show the CallContainer component
+  };
+
   return (
-    <div className="p-2.5 border-b border-base-300">
+    <div className="p-2.5 border-b border-base-300 relative">
+      {/* Chat Header */}
       <div className="flex items-center justify-between">
+        {/* User Info */}
         <div className="flex items-center gap-3">
-          {/* Avatar */}
           <div className="avatar">
             <div className="size-10 rounded-full relative">
-              <img src={selectedUser.profilePic || "/avatar.png"} alt={selectedUser.fullName} />
+              <img
+                src={selectedUser.profilePic || "/avatar.png"}
+                alt={selectedUser.fullName}
+              />
             </div>
           </div>
 
-          {/* User info */}
           <div>
             <h3 className="font-medium">{selectedUser.fullName}</h3>
             <p className="text-sm text-base-content/70">
@@ -43,8 +59,10 @@ const ChatHeader = ({ setIsDeleting }) => {
           <button onClick={() => setShowMenu(!showMenu)}>
             <MoreVertical />
           </button>
+
+          {/* Dropdown Menu */}
           {showMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg">
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
               <button
                 onClick={handleDeleteMessages}
                 className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -61,11 +79,36 @@ const ChatHeader = ({ setIsDeleting }) => {
           )}
         </div>
 
-        {/* Close button */}
+        {/* Video Call Button */}
+        <button onClick={handleVideoCall}>
+          <Video />
+        </button>
+
+        {/* Close Chat Button */}
         <button onClick={() => setSelectedUser(null)}>
           <X />
         </button>
       </div>
+
+      {/* Render CallContainer when Video Call is Active */}
+      {isVideoCall && (
+        <div className="absolute inset-0 bg-white z-20 flex flex-col items-center justify-center">
+          <CallContainer
+            selectedUser={selectedUser}
+            onEndCall={() => setIsVideoCall(false)}
+            localVideoRef={localVideoRef}
+            remoteVideoRef={remoteVideoRef}
+            peerConnectionRef={peerConnectionRef} // ✅ Pass peerConnectionRef correctly
+            iceCandidateQueue={iceCandidateQueue}
+          />
+          <button
+            onClick={() => setIsVideoCall(false)}
+            className="mt-4 px-4 py-2 bg-red-500 text-white rounded"
+          >
+            End Call
+          </button>
+        </div>
+      )}
     </div>
   );
 };

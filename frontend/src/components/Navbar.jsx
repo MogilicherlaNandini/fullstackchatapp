@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
-import {useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import { LogOut, MessageSquare, Settings, User, Bell } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
+import VideoCallIcon from '@mui/icons-material/VideoCall'; // Update import path // Import VideoCallIcon
 
 const Navbar = () => {
   const { logout, authUser } = useAuthStore();
@@ -43,6 +44,11 @@ const Navbar = () => {
                 <Link to={"/profile"} className={`btn btn-sm gap-2`}>
                   <User className="size-5" />
                   <span className="hidden sm:inline">Profile</span>
+                </Link>
+
+                <Link to={"/call"} className={`btn btn-sm gap-2`}> {/* Add link to CallContainer */}
+                  <VideoCallIcon className="size-5" />
+                  <span className="hidden sm:inline">Call</span>
                 </Link>
 
                 <button className="flex gap-2 items-center" onClick={logout}>
