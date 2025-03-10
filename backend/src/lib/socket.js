@@ -84,7 +84,52 @@ io.on("connection", (socket) => {
     }
   });
 
-  /** 📌 STEP 7: Handle User Disconnection */
+  /** 📌 STEP 7: Handle Audio Call Offer */
+  socket.on("audio-offer", ({ offer, senderId, receiverId }) => {
+    console.log(`📡 Sending audio offer from ${senderId} to ${receiverId}`);
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("audio-offer", { offer, senderId });
+    }
+  });
+
+  /** 📌 STEP 8: Send Audio Answer to the Caller */
+  socket.on("audio-answer", ({ answer, senderId, receiverId }) => {
+    console.log(`✅ Audio answer from ${senderId} to ${receiverId}`);
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("audio-answer", { answer, senderId });
+    }
+  });
+
+  /** 📌 STEP 9: Handle Audio ICE Candidates */
+  socket.on("audio-candidate", ({ candidate, senderId, receiverId }) => {
+    console.log(`❄️ Audio ICE Candidate from ${senderId} to ${receiverId}`);
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("audio-candidate", { candidate, senderId });
+    }
+  });
+
+  /** 📌 STEP 10: Handle Audio Call End */
+  socket.on("audio-call-ended", ({ senderId, receiverId }) => {
+    console.log(`⛔ Audio call ended by ${senderId}`);
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("audio-call-ended");
+    }
+  });
+
+  /** 📌 STEP 11: Handle Audio Call Rejection */
+  socket.on("audio-call-rejected", ({ senderId, receiverId }) => {
+    console.log(`🚫 Audio call rejected by ${receiverId}`);
+    const senderSocketId = getReceiverSocketId(senderId);
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("audio-call-rejected");
+    }
+  });
+
+  /** 📌 STEP 12: Handle User Disconnection */
   socket.on("disconnect", () => {
     console.log("❌ A user disconnected", socket.id);
     delete userSocketMap[userId];

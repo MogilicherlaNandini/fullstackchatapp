@@ -86,9 +86,19 @@ export const useChatStore = create((set, get) => ({
   incomingCallData: null,
   callAccepted: false,
 
-  setReceivingCall: (isReceivingCall) => set({ isReceivingCall }),
-  setIncomingCallData: (incomingCallData) => set({ incomingCallData }),
-  setCallAccepted: (callAccepted) => set({ callAccepted }),
+  setSelectedUser: (user) => set({ selectedUser: user }),
+  isReceivingCall: false,
+  setReceivingCall: (isReceiving) => set({ isReceivingCall: isReceiving }),
+  incomingCallData: null,
+  setIncomingCallData: (data) => set({ incomingCallData: data }),
+  callAccepted: false,
+  setCallAccepted: (accepted) => set({ callAccepted: accepted }),
+  isAudioReceivingCall: false,
+  setAudioReceivingCall: (isReceiving) => set({ isAudioReceivingCall: isReceiving }),
+  incomingAudioCallData: null,
+  setIncomingAudioCallData: (data) => set({ incomingAudioCallData: data }),
+  audioCallAccepted: false,
+  setAudioCallAccepted: (accepted) => set({ audioCallAccepted: accepted }),
 
   deleteMessages: async (messageIds) => {
     try {

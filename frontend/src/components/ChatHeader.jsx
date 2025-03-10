@@ -1,8 +1,9 @@
 import { useState, useRef } from "react";
-import { X, MoreVertical, Video } from "lucide-react";
+import { X, MoreVertical, Video, Phone } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 import CallContainer from "./CallContainer"; // Import CallContainer component
+import AudioContainer from "./AudioContainer";
 
 const ChatHeader = ({ setIsDeleting }) => {
   const { authUser } = useAuthStore();
@@ -10,8 +11,11 @@ const ChatHeader = ({ setIsDeleting }) => {
   const { onlineUsers } = useAuthStore();
   const [showMenu, setShowMenu] = useState(false);
   const [isVideoCall, setIsVideoCall] = useState(false); // State to manage video call visibility
+  const [isAudioCall, setIsAudioCall] = useState(false); // State to manage audio call visibility
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const localAudioRef = useRef(null);
+  const remoteAudioRef = useRef(null);
   const peerConnectionRef = useRef(); // ✅ Ensure peerConnectionRef is initialized
   peerConnectionRef.current = peerConnectionRef.current || null; // ✅ Prevent undefined errors
   const iceCandidateQueue = useRef([]);
@@ -28,7 +32,11 @@ const ChatHeader = ({ setIsDeleting }) => {
   };
 
   const handleVideoCall = async () => {
-    setIsVideoCall(true); // Show the CallContainer component
+    setIsVideoCall(true); // Show the CallContainer component for video call
+  };
+
+  const handleAudioCall = async () => {
+    setIsAudioCall(true); // Show the CallContainer component for audio call
   };
 
   return (
@@ -84,6 +92,11 @@ const ChatHeader = ({ setIsDeleting }) => {
           <Video />
         </button>
 
+        {/* Audio Call Button */}
+        <button onClick={handleAudioCall}>
+          <Phone />
+        </button>
+
         {/* Close Chat Button */}
         <button onClick={() => setSelectedUser(null)}>
           <X />
@@ -100,9 +113,31 @@ const ChatHeader = ({ setIsDeleting }) => {
             remoteVideoRef={remoteVideoRef}
             peerConnectionRef={peerConnectionRef} // ✅ Pass peerConnectionRef correctly
             iceCandidateQueue={iceCandidateQueue}
+            isAudioCall={false} // Indicate that this is a video call
           />
           <button
             onClick={() => setIsVideoCall(false)}
+            className="mt-4 px-4 py-2 bg-red-500 text-white rounded"
+          >
+            End Call
+          </button>
+        </div>
+      )}
+
+      {/* Render CallContainer when Audio Call is Active */}
+      {isAudioCall && (
+        <div className="absolute inset-0 bg-white z-20 flex flex-col items-center justify-center">
+          <AudioContainer
+            selectedUser={selectedUser}
+            onEndCall={() => setIsAudioCall(false)}
+            localAudioRef={localAudioRef}
+            remoteAudioRef={remoteAudioRef}
+            peerConnectionRef={peerConnectionRef} // ✅ Pass peerConnectionRef correctly
+            iceCandidateQueue={iceCandidateQueue}
+            isAudioCall={true} // Indicate that this is an audio call
+          />
+          <button
+            onClick={() => setIsAudioCall(false)}
             className="mt-4 px-4 py-2 bg-red-500 text-white rounded"
           >
             End Call

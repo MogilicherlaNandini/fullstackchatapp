@@ -8,67 +8,115 @@ import LoginPage from "./pages/LoginPage";
 import SettingsPage from "./pages/SettingsPage";
 import ProfilePage from "./pages/ProfilePage";
 import CallContainer from "./components/CallContainer";
+import AudioContainer from "./components/AudioContainer";
 
 import { useAuthStore } from "./store/useAuthStore";
 import { useThemeStore } from "./store/useThemeStore";
 import { useChatStore } from "./store/useChatStore";
 
 import { Loader } from "lucide-react";
-import { Toaster } from "react-hot-toast";
+import { Toaster, toast } from "react-hot-toast";
 
 const App = () => {
   const { authUser, checkAuth, isCheckingAuth, connectSocket, disconnectSocket, socket } = useAuthStore();
   const { theme } = useThemeStore();
-  const { subscribeToMessages, setReceivingCall, setIncomingCallData, setCallAccepted, isReceivingCall, incomingCallData, callAccepted } = useChatStore();
+  const {
+    subscribeToMessages, setReceivingCall, setIncomingCallData, setCallAccepted,
+    isReceivingCall, incomingCallData, callAccepted,
+    setAudioReceivingCall, setIncomingAudioCallData, setAudioCallAccepted,
+    isAudioReceivingCall, incomingAudioCallData, audioCallAccepted ,setSelectedUser
+  } = useChatStore();
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const localAudioRef = useRef(null);
+  const remoteAudioRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const iceCandidateQueue = useRef([]);
+  const [isAudioCall, setIsAudioCall] = useState(false);
 
-  // Check authentication status on mount
+  // Check authentication on mount
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
 
-  // Connect socket and subscribe to messages when user logs in
+  // Manage socket connection on authentication
   useEffect(() => {
     if (authUser) {
       connectSocket();
       subscribeToMessages();
-
-      return () => {
-        disconnectSocket();
-      };
+    } else {
+      disconnectSocket();
     }
   }, [authUser, connectSocket, disconnectSocket, subscribeToMessages]);
 
-  // Listen for incoming video calls
+  // Handle incoming calls
   useEffect(() => {
     if (!socket) return;
 
-    socket.on("incoming-call", ({ senderId, offer, callerName }) => {
+    const handleIncomingCall = ({ senderId, offer, callerName, isAudio }) => {
+      console.log("Incoming call:", { senderId, offer, callerName, isAudio });
       setReceivingCall(true);
-      setIncomingCallData({ senderId, offer, callerName });
-    });
+      setIncomingCallData({ senderId, offer, callerName, isAudio });
+      setIsAudioCall(isAudio);
+    };
 
-    socket.on("call-rejected", () => {
+    const handleCallRejected = () => {
+      console.log("Call rejected");
       setReceivingCall(false);
       setIncomingCallData(null);
-    });
+      toast.error("Call was rejected.");
+    };
 
-    socket.on("call-ended", () => {
+    const handleCallEnded = () => {
+      console.log("Call ended");
       setReceivingCall(false);
       setIncomingCallData(null);
       setCallAccepted(false);
-    });
-
-    return () => {
-      socket.off("incoming-call");
-      socket.off("call-rejected");
-      socket.off("call-ended");
     };
-  }, [socket, setReceivingCall, setIncomingCallData, setCallAccepted]);
+
+    const handleIncomingAudioCall = ({ senderId, offer, callerName }) => {
+      setSelectedUser(senderId);
+      
+     console.log("Incoming audio call:", { senderId, offer, callerName });
+      setAudioReceivingCall(true);
+      setIncomingAudioCallData({ senderId, offer, callerName });
+      setIsAudioCall(true);  // Ensure audio call is detected
+    };
+    
+
+    const handleAudioCallRejected = () => {
+      console.log("Audio call rejected");
+      setAudioReceivingCall(false);
+      setIncomingAudioCallData(null);
+      toast.error("Audio call was rejected.");
+    };
+
+    const handleAudioCallEnded = () => {
+      console.log("Audio call ended");
+      setAudioReceivingCall(false);
+      setIncomingAudioCallData(null);
+      setAudioCallAccepted(false);
+    };
+
+    // Attach event listeners
+    socket.on("incoming-call", handleIncomingCall);
+    socket.on("call-rejected", handleCallRejected);
+    socket.on("call-ended", handleCallEnded);
+    socket.on("audio-offer", handleIncomingAudioCall);
+    socket.on("audio-call-rejected", handleAudioCallRejected);
+    socket.on("audio-call-ended", handleAudioCallEnded);
+
+    // Cleanup on unmount
+    return () => {
+      socket.off("incoming-call", handleIncomingCall);
+      socket.off("call-rejected", handleCallRejected);
+      socket.off("call-ended", handleCallEnded);
+      socket.off("audio-offer", handleIncomingAudioCall);
+      socket.off("audio-call-rejected", handleAudioCallRejected);
+      socket.off("audio-call-ended", handleAudioCallEnded);
+    };
+  }, [socket, setReceivingCall, setIncomingCallData, setCallAccepted, setAudioReceivingCall, setIncomingAudioCallData, setAudioCallAccepted]);
 
   // Show loading while checking authentication
   if (isCheckingAuth && !authUser) {
@@ -80,7 +128,11 @@ const App = () => {
   }
 
   const handleAcceptCall = () => {
-    setCallAccepted(true);
+    if (isAudioCall) {
+      setAudioCallAccepted(true);
+    } else {
+      setCallAccepted(true);
+    }
   };
 
   return (
@@ -98,16 +150,27 @@ const App = () => {
         </Routes>
       </main>
 
-      {/* Always render CallContainer */}
-      {(isReceivingCall || callAccepted) && (
-        <CallContainer
-          selectedUser={incomingCallData?.senderId}
-          onEndCall={() => setCallAccepted(false)}
-          localVideoRef={localVideoRef}
-          remoteVideoRef={remoteVideoRef}
-          peerConnectionRef={peerConnectionRef}
-          iceCandidateQueue={iceCandidateQueue}
-        />
+      {/* Call UI Rendering */}
+      {(isReceivingCall || callAccepted || isAudioReceivingCall || audioCallAccepted) && (
+        isAudioCall ? (
+          <AudioContainer
+            selectedUser={incomingAudioCallData?.senderId}
+            onEndCall={() => setAudioCallAccepted(false)}
+            localAudioRef={localAudioRef}
+            remoteAudioRef={remoteAudioRef}
+            peerConnectionRef={peerConnectionRef}
+            iceCandidateQueue={iceCandidateQueue}
+          />
+        ) : (
+          <CallContainer
+            selectedUser={incomingCallData?.senderId}
+            onEndCall={() => setCallAccepted(false)}
+            localVideoRef={localVideoRef}
+            remoteVideoRef={remoteVideoRef}
+            peerConnectionRef={peerConnectionRef}
+            iceCandidateQueue={iceCandidateQueue}
+          />
+        )
       )}
 
       <Toaster />
